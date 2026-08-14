@@ -119,11 +119,28 @@ PORT=3000 node .next/standalone/server.js
 
 ## デプロイ
 
-ロリポップ！デプロイナウにデプロイする。
+ロリポップ！デプロイナウで公開している。
+
+| 項目 | 値 |
+|---|---|
+| 公開URL | https://tech-blog-og-gen.lolipop-now.app |
+| プロジェクト名 | `pepabo-tech-blog-og-gen` |
+
+`.lolipop/project.json` があれば、更新は引数なしで通る（`.gitignore` 対象なので、このチェックアウトには含まれない）。
 
 ```bash
-npx lolipop deploy --name <name> --framework next
+npx lolipop deploy
 ```
+
+ビルドはサーバ側で走る。キューに入ってから公開まで3分ほどかかる。
+
+### 注意
+
+- **`output: 'standalone'` は必須**。これが無いとデプロイ成果物を組み立てられない
+- サブドメインに `pepabo` を含む名前は予約済みで弾かれる。そのためプロジェクト名
+  (`pepabo-tech-blog-og-gen`) とサブドメイン (`tech-blog-og-gen`) を `--domain` で分けている
+- 新規作成からやり直す場合:
+  `npx lolipop deploy --name <name> --framework next --domain <subdomain>`
 
 ## 実装メモ
 
