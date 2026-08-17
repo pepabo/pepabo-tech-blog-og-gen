@@ -41,10 +41,8 @@ const INITIAL_STATE: State = {
 // 画像はデコード済みのものだけを描画対象にする（描画は同期処理のため）
 type Images = {
   bgImages: Record<string, HTMLImageElement>;
-  customBg: HTMLImageElement | null;
   avatarImg: HTMLImageElement | null;
   logoImg: HTMLImageElement | null;
-  logoDefaultImg: HTMLImageElement | null;
 };
 
 // ---------- 画像ロード ----------
@@ -66,15 +64,6 @@ async function sha256Hex(text: string) {
   }
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-function readFileAsDataURL(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const fr = new FileReader();
-    fr.onload = () => resolve(fr.result as string);
-    fr.onerror = () => reject(new Error('ファイルを読み込めませんでした'));
-    fr.readAsDataURL(file);
-  });
 }
 
 // ---------- テキスト整形 ----------
@@ -223,16 +212,7 @@ function drawPanel(c: CanvasRenderingContext2D, x: number, y: number, w: number,
 // state と読み込み済み画像を束ねた描画一式。元の単一 HTML 版で IIFE のクロージャが
 // 持っていたものを、React の外に切り出したもの。
 function createScene(state: State, images: Images) {
-  const { bgImages, customBg, avatarImg, logoImg, logoDefaultImg } = images;
-
-  function activeBg() {
-    return customBg || bgImages[state.bg] || null;
-  }
-
-  function activeLogo() {
-    if (!state.showLogo) return null;
-    return logoImg || logoDefaultImg;
-  }
+  const { bgImages, avatarImg, logoImg } = images;
 
   function hasAuthorRow() {
     return Boolean(state.author.trim() || state.role.trim() || avatarImg);
@@ -311,7 +291,7 @@ function createScene(state: State, images: Images) {
   function render(c: CanvasRenderingContext2D) {
     c.clearRect(0, 0, W, H);
 
-    const bg = activeBg();
+    const bg = bgImages[state.bg] || null;
     if (bg) drawCover(c, bg, 0, 0, W, H);
     else { c.fillStyle = '#dfe3e8'; c.fillRect(0, 0, W, H); }
 
@@ -321,7 +301,7 @@ function createScene(state: State, images: Images) {
     const cardBottom = H - CARD_MARGIN;
 
     // ロゴはカードの右下角に固定する（本文の量に影響されない）
-    const logo = activeLogo();
+    const logo = state.showLogo ? logoImg : null;
     let logoTop = cardBottom - LOGO_PAD_BOTTOM;
     if (logo) {
       const box = measureContain(logo, LOGO_MAX_W, LOGO_MAX_H);
@@ -406,20 +386,15 @@ export default function OgImageGenerator() {
   const [warn, setWarn] = useState('');
   const [status, setStatus] = useState('');
   const [avatarNote, setAvatarNote] = useState({ msg: '', isError: false });
-  // 画像は ref に持つので、差し替えたことを描画に伝えるためのカウンタ
+  // 画像は ref に持つので、読み込めたことを描画に伝えるためのカウンタ
   const [imageVersion, setImageVersion] = useState(0);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const avatarInputRef = useRef<HTMLInputElement>(null);
-  const logoInputRef = useRef<HTMLInputElement>(null);
-  const bgCustomInputRef = useRef<HTMLInputElement>(null);
 
   const imagesRef = useRef<Images>({
     bgImages: {},
-    customBg: null,
     avatarImg: null,
     logoImg: null,
-    logoDefaultImg: null,
   });
   const fontsReadyRef = useRef(false);
   const lastSampleRef = useRef<string | null>(null);
@@ -464,7 +439,6 @@ export default function OgImageGenerator() {
       const img = await loadImage(`https://www.gravatar.com/avatar/${hash}?s=256&d=404`, 'anonymous');
       if (token !== gravatarTokenRef.current) return;
       imagesRef.current.avatarImg = img;
-      if (avatarInputRef.current) avatarInputRef.current.value = '';
       setAvatarNote({ msg: 'Gravatar を読み込みました', isError: false });
       bumpImages();
     } catch (err) {
@@ -495,7 +469,7 @@ export default function OgImageGenerator() {
       for (const [key, img] of entries) {
         imagesRef.current.bgImages[key] = img;
       }
-      imagesRef.current.logoDefaultImg = defaultLogo;
+      imagesRef.current.logoImg = defaultLogo;
       bumpImages();
       if (restored.email.trim()) applyGravatar(restored.email);
     })();
@@ -545,33 +519,17 @@ export default function OgImageGenerator() {
     return `${base}.${ext}`;
   };
 
-  const handleFile = async (input: HTMLInputElement, assign: (img: HTMLImageElement) => void) => {
-    const file = input.files && input.files[0];
-    if (!file) return;
-    try {
-      const img = await loadImage(await readFileAsDataURL(file));
-      assign(img);
-      bumpImages();
-    } catch (err) {
-      setStatusMsg((err as Error).message);
-    }
-  };
-
   const onEmailInput = (value: string) => {
     update({ email: value });
     if (gravatarTimerRef.current) clearTimeout(gravatarTimerRef.current);
     gravatarTimerRef.current = setTimeout(() => applyGravatar(value), 500);
   };
 
-  const onClearImages = () => {
+  // メールアドレスを消しても取得済みのアバターは残るので、消す手段としてこれが要る
+  const onClearAvatar = () => {
     imagesRef.current.avatarImg = null;
-    imagesRef.current.logoImg = null;
-    imagesRef.current.customBg = null;
     gravatarTokenRef.current += 1;
     setAvatarNote({ msg: '', isError: false });
-    if (avatarInputRef.current) avatarInputRef.current.value = '';
-    if (logoInputRef.current) logoInputRef.current.value = '';
-    if (bgCustomInputRef.current) bgCustomInputRef.current.value = '';
     update({ email: '' });
     bumpImages();
   };
@@ -650,7 +608,7 @@ export default function OgImageGenerator() {
         </fieldset>
 
         <fieldset>
-          <legend>画像</legend>
+          <legend>アバターとロゴ</legend>
           <label className="field">
             <span>アバター: メールアドレス（Gravatar から取得）</span>
             <input
@@ -663,38 +621,15 @@ export default function OgImageGenerator() {
             />
           </label>
           <p className={avatarNote.isError ? 'note err' : 'note'} id="avatarNote">{avatarNote.msg}</p>
-          <label className="field">
-            <span>アバター: 画像ファイル（任意・正方形推奨）</span>
-            <input
-              type="file"
-              id="avatar"
-              accept="image/*"
-              ref={avatarInputRef}
-              onChange={(e) => handleFile(e.target, (img) => {
-                imagesRef.current.avatarImg = img;
-                setAvatarNote({ msg: '', isError: false });
-              })}
-            />
-          </label>
-          <label className="field">
-            <span>ロゴ（未指定なら Pepabo Tech Portal のロゴを右下に配置）</span>
-            <input
-              type="file"
-              id="logo"
-              accept="image/*"
-              ref={logoInputRef}
-              onChange={(e) => handleFile(e.target, (img) => { imagesRef.current.logoImg = img; })}
-            />
-          </label>
           <label className="check">
             <input
               type="checkbox"
               id="showLogo"
               checked={state.showLogo}
               onChange={(e) => update({ showLogo: e.target.checked })}
-            /> ロゴを表示する
+            /> Pepabo Tech Portal のロゴを右下に表示する
           </label>
-          <button type="button" id="clearImages" onClick={onClearImages}>画像をリセット</button>
+          <button type="button" id="clearAvatar" onClick={onClearAvatar}>アバターをリセット</button>
         </fieldset>
 
         <fieldset>
@@ -709,16 +644,6 @@ export default function OgImageGenerator() {
               />
             ))}
           </div>
-          <label className="field" style={{ marginTop: 12 }}>
-            <span>差し替え（任意・上の3枚の代わりに使う）</span>
-            <input
-              type="file"
-              id="bgCustom"
-              accept="image/*"
-              ref={bgCustomInputRef}
-              onChange={(e) => handleFile(e.target, (img) => { imagesRef.current.customBg = img; })}
-            />
-          </label>
         </fieldset>
 
         <fieldset>

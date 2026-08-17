@@ -1,8 +1,10 @@
 # OG Image Generator
 
 テックブログ用の 1200×630 OG 画像を作る Next.js アプリ。
-描画はすべてブラウザ内の canvas で完結し、入力した画像が外部に送信されることはない
-（Gravatar を使うときだけ gravatar.com にリクエストする）。
+描画はすべてブラウザ内の canvas で完結する（Gravatar を使うときだけ gravatar.com にリクエストする）。
+
+素材は**リポジトリに入っているものだけ**を使う。背景は `public/bg/p{1,2,3}.png` の3枚、ロゴは
+`public/logo-default.png`、アバターは Gravatar。画像アップロードの口は持たない。
 
 もとは単一 HTML アプリ（`og-image-generator.html`）で、そこから 1:1 で移植したもの。
 
@@ -67,7 +69,8 @@ magick eyecatch-placeholder.png -crop 1920x260+0+820 +repage \
 
 ## アバターと Gravatar
 
-アバターはメールアドレス入力か画像ファイルのどちらでも指定できる（最後に操作したほうが有効）。
+アバターの指定手段は Gravatar だけ（メールアドレスを入れる）。未登録のアドレスならアバター無しで描く。
+取得済みのアバターはメールアドレスを消しただけでは消えないので、「アバターをリセット」ボタンで落とす。
 
 - ハッシュは **SHA-256**。Gravatar は MD5 / SHA-256 のどちらも受け付けるので、ブラウザ標準の
   `crypto.subtle.digest` で計算できる SHA-256 を使い、MD5 実装を持ち込まない
@@ -163,5 +166,6 @@ npx lolipop deploy
   2x（2400×1260）でも文字・図形がベクタ品質で出る
 - **React との境界**: 命令的な描画コードは React 化せず、単一 HTML 版のクロージャをそのまま
   `createScene(state, images)` に移した。フォーム値だけ `useState`、画像は `useRef` に持ち、
-  差し替えたことは `imageVersion` カウンタで描画側に伝える
+  読み込めたことは `imageVersion` カウンタで描画側に伝える（背景のプリロードと Gravatar が
+  非同期なので、アップロードが無くてもこの仕組みは要る）
 - **入力の保存**: 著者名・所属・メールアドレス・背景の選択は localStorage に保存する。タイトルは保存しない
