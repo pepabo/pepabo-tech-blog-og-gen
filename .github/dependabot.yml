@@ -1,0 +1,35 @@
+version: 2
+updates:
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'daily'
+    # 公開直後のバージョンは侵害リスクが高いため避ける。automerge を有効にする場合は
+    # 14 日に引き上げること。なお cooldown はバージョン更新のみに効き、
+    # セキュリティ更新（CVE 対応）は遅延しない。
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 8
+    groups:
+      # next と eslint-config-next はバージョンを揃える必要がある（現状どちらも 16.3.1 固定）
+      next:
+        patterns:
+          - 'next'
+          - 'eslint-config-next'
+      # react と react-dom も同上。型定義もまとめて上げないと噛み合わない
+      react:
+        patterns:
+          - 'react'
+          - 'react-dom'
+          - '@types/react'
+          - '@types/react-dom'
+
+  # ワークフローはまだ無いが、特定のエコシステムだけ抜けないよう先に設定しておく。
+  # アクションを SHA で固定する運用と組み合わせて使う。
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'daily'
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 8
