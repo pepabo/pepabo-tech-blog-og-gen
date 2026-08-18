@@ -1,0 +1,18 @@
+name: Dependabot auto-merge
+
+# pull_request だと Dependabot PR は fork 扱いになり GITHUB_TOKEN が read-only になる
+on:
+  pull_request_target:
+
+permissions:
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh pr merge "$PR_URL" --auto --squash
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
