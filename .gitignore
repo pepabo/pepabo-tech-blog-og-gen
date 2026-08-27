@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# lolipop project link (デプロイ先の紐付け情報。個人アカウント情報のため非公開)
+.lolipop/
