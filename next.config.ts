@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["@napi-rs/canvas"],
   // /api/og が fs から読むファイルはコード解析では追跡されないので明示する
   outputFileTracingIncludes: {
-    "/api/og": ["./fonts/*.otf", "./public/bg/*.png", "./public/logo-default.png"],
+    "/api/og": ["./fonts/*.otf", "./fonts/*.ttf", "./public/bg/*.png", "./public/logo-default.png"],
   },
   // Slack や X のリンク展開は content-type ではなく拡張子を見ていることがあるので、
   // .png で終わる別名も用意する（クエリはそのまま引き継がれる）

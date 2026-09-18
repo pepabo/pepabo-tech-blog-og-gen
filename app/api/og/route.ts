@@ -7,30 +7,36 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { BG_SOURCES, LOGO_DEFAULT, createScene, type CanvasFactory, type Images } from '../../scene';
+import { BG_SOURCES, FONT_FAMILIES, LOGO_DEFAULT, createScene, type CanvasFactory, type Images } from '../../scene';
 import { ogFilename, queryToState } from '../../params';
 
 // 描画にネイティブモジュールを使うので Node ランタイム固定
 export const runtime = 'nodejs';
 
-// ブラウザ側は canvas に "Noto Sans JP" をリテラルで指定している。サーバーでは同じ名前で
+// ブラウザ側は canvas に FONT_FAMILIES のファミリ名をリテラルで指定している。サーバーでは同じ名前で
 // 静的ウェイトを登録する（可変フォントは skia が weight 軸を解釈せず 1 ウェイトに潰れる）。
-const FONT_FILES = ['NotoSansJP-Regular.otf', 'NotoSansJP-Medium.otf', 'NotoSansJP-Bold.otf'];
-const FONT_FAMILY = 'Noto Sans JP';
+const FONT_FILE_SETS: Record<string, string[]> = {
+  'Noto Sans JP': ['NotoSansJP-Regular.otf', 'NotoSansJP-Medium.otf', 'NotoSansJP-Bold.otf'],
+  'Noto Serif JP': ['NotoSerifJP-Regular.otf', 'NotoSerifJP-Medium.otf', 'NotoSerifJP-Bold.otf'],
+  'M PLUS Rounded 1c': ['MPLUSRounded1c-Regular.ttf', 'MPLUSRounded1c-Medium.ttf', 'MPLUSRounded1c-Bold.ttf'],
+};
 
 // 同時に来た最初のリクエストで二重登録しないよう Promise を使い回す（失敗したら次で再試行）
 let fontsReady: Promise<void> | null = null;
 
 function registerFonts() {
   fontsReady ??= (async () => {
-    for (const file of FONT_FILES) {
-      const full = path.join(process.cwd(), 'fonts', file);
-      GlobalFonts.register(await readFile(full), FONT_FAMILY);
-    }
-    // フォントが無いまま描くと端末のゴシック体で焼き付いた画像を配ってしまうので、ここで落とす
-    const family = GlobalFonts.families.find((f) => f.family === FONT_FAMILY);
-    if (!family || family.styles.length < FONT_FILES.length) {
-      throw new Error(`${FONT_FAMILY} を登録できませんでした`);
+    for (const family of Object.values(FONT_FAMILIES)) {
+      const files = FONT_FILE_SETS[family];
+      for (const file of files) {
+        const full = path.join(process.cwd(), 'fonts', file);
+        GlobalFonts.register(await readFile(full), family);
+      }
+      // フォントが無いまま描くと端末のゴシック体で焼き付いた画像を配ってしまうので、ここで落とす
+      const registered = GlobalFonts.families.find((f) => f.family === family);
+      if (!registered || registered.styles.length < files.length) {
+        throw new Error(`${family} を登録できませんでした`);
+      }
     }
   })().catch((err) => {
     fontsReady = null;

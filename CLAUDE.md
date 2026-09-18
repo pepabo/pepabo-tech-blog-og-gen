@@ -61,9 +61,9 @@ canvas への描画は React 化せず、単一 HTML 版のクロージャをそ
 
 いずれも「見た目は動いているように見えるが結果が壊れる」類なので注意。
 
-- **`next/font` を導入しない。** canvas 側は `ctx.font` / `document.fonts.load` にリテラルの
-  ファミリ名 `"Noto Sans JP"` を渡している。`next/font` はハッシュ名にリネームするため、
-  指定が効かず端末のゴシック体で焼き付く
+- **`next/font` を導入しない。** canvas 側は `ctx.font` / `document.fonts.load` に
+  `FONT_FAMILIES`（`app/scene.ts`）のリテラルなファミリ名（`"Noto Sans JP"` など）を渡している。
+  `next/font` はハッシュ名にリネームするため、指定が効かず端末のゴシック体で焼き付く
 - **`document.fonts.load(spec, 実際に描く文字列)` を描画前に通す。** 日本語はサブセット配信なので、
   怠るとフォールバックフォントで焼き付く（`ensureFonts()`）
 - **`output: 'standalone'` を外さない。** ロリポップ！デプロイナウがこれを前提にしている
@@ -71,9 +71,10 @@ canvas への描画は React 化せず、単一 HTML 版のクロージャをそ
   `toBlob()` が失敗し書き出せなくなる。逆に `public/` 配下（同一オリジン）には付けない
 - **`window` / `document` / `localStorage` はトップレベルで触らない。** standalone はサーバーで
   レンダリングするので `next build` が落ちる。localStorage の復元も画像の読み込みも `useEffect` 内で行う
-- **サーバー側のフォントに可変フォントを使わない。** `fonts/NotoSansJP-{Regular,Medium,Bold}.otf`
-  を `"Noto Sans JP"` の別名で登録している。可変フォント1本にすると skia が `wght` 軸を解釈せず、
-  `ctx.font` の太さ指定が全部同じになる
+- **サーバー側のフォントに可変フォントを使わない。** `font` パラメータで選べる3書体それぞれ、
+  `fonts/*-{Regular,Medium,Bold}.{otf,ttf}` を同じファミリ名の別名で登録している
+  （`FONT_FILE_SETS`、`app/api/og/route.ts`）。可変フォント1本にすると skia が `wght` 軸を
+  解釈せず、`ctx.font` の太さ指定が全部同じになる
 - **`fonts/` と `public/` は `next.config.ts` の `outputFileTracingIncludes` に入れておく。**
   `fs` で読むファイルは追跡されないので、抜けると standalone で `/api/og` が 500 になる
 - **`/api/og` に任意の画像 URL を受け取るパラメータを足さない。** サーバーが任意の宛先に

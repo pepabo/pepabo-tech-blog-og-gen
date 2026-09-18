@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
-  BG_SOURCES, H, INITIAL_STATE, LOGO_DEFAULT, W,
+  BG_SOURCES, FONT_FAMILIES, FONT_LABELS, FONT_SOURCES, H, INITIAL_STATE, LOGO_DEFAULT, W,
   createScene, type CanvasFactory, type Images, type State,
 } from './scene';
 import { ogFilename, stateToQuery } from './params';
@@ -39,14 +39,14 @@ const browserCanvas: CanvasFactory = (w, h) => {
 };
 
 // Google Fonts は用途別にサブセット配信されるため、実際に使う文字を渡して読み込ませる
-async function ensureFonts(text: string) {
+async function ensureFonts(text: string, family: string) {
   if (!document.fonts) return false;
   const sample = (text || '') + 'ABCabc0123';
   try {
     await Promise.all([
-      document.fonts.load(`700 48px "Noto Sans JP"`, sample),
-      document.fonts.load(`500 24px "Noto Sans JP"`, sample),
-      document.fonts.load(`400 16px "Noto Sans JP"`, sample),
+      document.fonts.load(`700 48px "${family}"`, sample),
+      document.fonts.load(`500 24px "${family}"`, sample),
+      document.fonts.load(`400 16px "${family}"`, sample),
     ]);
     await document.fonts.ready;
     return true;
@@ -63,7 +63,7 @@ function toBlob(cv: HTMLCanvasElement): Promise<Blob | null> {
 function save(state: State) {
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify({
-      author: state.author, role: state.role, email: state.email, bg: state.bg,
+      author: state.author, role: state.role, email: state.email, bg: state.bg, font: state.font,
       showLogo: state.showLogo, autoSize: state.autoSize, titleSize: state.titleSize,
     }));
   } catch { /* プライベートモード等では保存しない */ }
@@ -77,6 +77,7 @@ function restore(): State {
   const state = { ...INITIAL_STATE, ...saved };
   // 保存済みの値が今の選択肢に無くても描画が落ちないようにする
   if (!Object.prototype.hasOwnProperty.call(BG_SOURCES, state.bg)) state.bg = 'p1';
+  if (!Object.prototype.hasOwnProperty.call(FONT_FAMILIES, state.font)) state.font = INITIAL_STATE.font;
   return state;
 }
 
@@ -195,10 +196,12 @@ export default function OgImageGenerator() {
 
     let cancelled = false;
     const sample = state.title + state.author + state.role;
-    if (!fontsReadyRef.current || sample !== lastSampleRef.current) {
-      lastSampleRef.current = sample;
+    const sampleKey = `${state.font}|${sample}`;
+    if (!fontsReadyRef.current || sampleKey !== lastSampleRef.current) {
+      lastSampleRef.current = sampleKey;
+      const family = FONT_FAMILIES[state.font] || FONT_FAMILIES[INITIAL_STATE.font];
       (async () => {
-        const ok = await ensureFonts(sample);
+        const ok = await ensureFonts(sample, family);
         if (ok) fontsReadyRef.current = true;
         if (cancelled) return; // 描画中に入力が変わった
         showWarning(scene.render(ctx));
@@ -351,6 +354,20 @@ export default function OgImageGenerator() {
         </fieldset>
 
         <fieldset>
+          <legend>フォント</legend>
+          <div className="seg" id="fontSeg">
+            {Object.keys(FONT_FAMILIES).map((key) => (
+              <FontOption
+                key={key}
+                value={key}
+                checked={state.font === key}
+                onChange={() => update({ font: key })}
+              />
+            ))}
+          </div>
+        </fieldset>
+
+        <fieldset>
           <legend>タイトルの体裁</legend>
           <label className="check">
             <input
@@ -411,8 +428,8 @@ export default function OgImageGenerator() {
         <div className="status" id="warn" style={{ color: '#c0392b' }}>{warn}</div>
         <div className="status" id="status">{status}</div>
         <p className="meta">
-          入力内容（著者名・所属・背景の選択）はブラウザに保存され、次回開いたときに復元されます。<br />
-          フォントは Noto Sans JP を CDN から読み込みます。オフラインの場合は端末のゴシック体で描画されます。<br />
+          入力内容（著者名・所属・背景・フォントの選択）はブラウザに保存され、次回開いたときに復元されます。<br />
+          フォントは CDN から読み込みます。オフラインの場合は端末のゴシック体で描画されます。<br />
           「画像URLをコピー」で得られる <code>/og.png?…</code> はサーバー側で同じ画像を生成する URL です。
           Slack に貼れば画像として展開され、<code>&lt;img&gt;</code> や curl からも取得できます。
           <code>&amp;dl=1</code> を付けて開くとそのままダウンロードになります（この形はリンク展開されません）。
@@ -432,6 +449,17 @@ function Swatch({ value, checked, onChange }: { value: string; checked: boolean;
         title={value}
         style={{ backgroundImage: `url("${BG_SOURCES[value]}")` }}
       ></label>
+    </>
+  );
+}
+
+function FontOption({ value, checked, onChange }: { value: string; checked: boolean; onChange: () => void }) {
+  return (
+    <>
+      <input type="radio" name="font" id={`font-${value}`} value={value} checked={checked} onChange={onChange} />
+      <label htmlFor={`font-${value}`} style={{ fontFamily: FONT_SOURCES[value] }}>
+        {FONT_LABELS[value]}
+      </label>
     </>
   );
 }

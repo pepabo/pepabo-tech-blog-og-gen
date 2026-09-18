@@ -15,7 +15,7 @@ export default function RootLayout({
     <html lang="ja">
       {/*
         next/font は使わない。canvas 側は ctx.font / document.fonts.load に
-        リテラルのファミリ名 "Noto Sans JP" を渡して日本語サブセットを
+        FONT_FAMILIES（app/scene.ts）のリテラルなファミリ名を渡して日本語サブセットを
         先読みさせているため、ハッシュ名にリネームされると指定が効かなくなる。
       */}
       <head>
@@ -23,7 +23,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         {/* eslint-disable-next-line @next/next/no-page-custom-font -- Pages Router 向けの警告。App Router のルートレイアウトなので全ページに適用される */}
         <link
-          href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@400;500;700&family=M+PLUS+Rounded+1c:wght@400;500;700&display=swap"
           rel="stylesheet"
         />
       </head>

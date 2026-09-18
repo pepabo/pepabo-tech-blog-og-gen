@@ -27,7 +27,7 @@
 | `app/globals.css` | 画面のスタイル（canvas の中身とは無関係） |
 | `public/bg/p{1,2,3}.png` | 背景 1200×630 |
 | `public/logo-default.png` | 既定ロゴ。GMOペパボ / Pepabo Tech Portal の文字ロックアップ透過 PNG（1202×81） |
-| `fonts/NotoSansJP-*.otf` | サーバー描画用の Noto Sans JP（OFL 1.1・`fonts/LICENSE.txt`） |
+| `fonts/*.otf` `fonts/*.ttf` | サーバー描画用フォント3種（すべて OFL 1.1・`fonts/*-LICENSE.txt`）。詳細は「[サーバー側のフォント](#サーバー側のフォント)」 |
 
 ## レイアウト
 
@@ -120,6 +120,7 @@ content-type ではなく拡張子を見ていることがあるので、貼り�
 | `role` | 所属・肩書き。120文字で切る | 空 |
 | `email` | Gravatar を引くメールアドレス | 空（アバターなし） |
 | `bg` | `p1` / `p2` / `p3`。それ以外は `p1` に落とす | `p1` |
+| `font` | `notosans` / `notoserif` / `mplus`。それ以外は `notosans` に落とす | `notosans` |
 | `logo` | `0` でロゴを消す | 表示する |
 | `size` | タイトルの文字サイズ 24〜60。**渡すと自動調整が切れる** | 自動調整 |
 | `scale` | `2` で 2400×1260 | `1`（1200×630） |
@@ -135,20 +136,32 @@ content-type ではなく拡張子を見ていることがあるので、貼り�
 
 ### サーバー側のフォント
 
-ブラウザは Google Fonts（可変フォント由来のサブセット）を使うが、サーバーは `fonts/` に置いた
-**静的ウェイトの OTF 3本**（Regular / Medium / Bold）を `"Noto Sans JP"` の別名で登録する。
+`font` パラメータで選べる3書体は、`app/scene.ts` の `FONT_FAMILIES` がキーとファミリ名の
+対応を持つ唯一の定義元。ブラウザは Google Fonts（可変フォント由来のサブセット）を使うが、
+サーバーは `fonts/` に置いた**静的ウェイトのファイル3本ずつ**（Regular / Medium / Bold）を
+同じファミリ名の別名で登録する（`app/api/og/route.ts` の `FONT_FILE_SETS`）。
 
-- **可変フォント（`NotoSansJP[wght].ttf`）は使えない。** skia が `wght` 軸を解釈せず 1ウェイトに
-  潰れるため、`ctx.font` の `400` / `500` / `700` がすべて同じ太さで焼き付く（実測で確認済み）
-- 文字幅はブラウザと最大 0.15% 差（純粋な日本語は完全一致）。折り返し判定が変わるのは
-  行が上限幅の 2px 以内に収まっている場合だけ
+| キー | ファミリ名 | ファイル | 入手元 |
+|---|---|---|---|
+| `notosans` | Noto Sans JP | `fonts/NotoSansJP-*.otf` | notofonts/noto-cjk |
+| `notoserif` | Noto Serif JP | `fonts/NotoSerifJP-*.otf` | notofonts/noto-cjk |
+| `mplus` | M PLUS Rounded 1c | `fonts/MPLUSRounded1c-*.ttf` | google/fonts |
+
+- **可変フォント（`NotoSansJP[wght].ttf` など）は使えない。** skia が `wght` 軸を解釈せず 1ウェイトに
+  潰れるため、`ctx.font` の `400` / `500` / `700` がすべて同じ太さで焼き付く（実測で確認済み）。
+  Noto Serif JP は google/fonts では可変フォントしか配布されていないため、静的 OTF は
+  notofonts/noto-cjk から取る
 - フォントが登録できなければ 500 を返す。端末のゴシック体で焼き付いた画像を配らないため
 
 ```bash
-# 取り直す場合（noto-cjk の JP サブセット OTF）
+# 取り直す場合
 for w in Regular Medium Bold; do
   curl -sfL -o "fonts/NotoSansJP-$w.otf" \
     "https://github.com/notofonts/noto-cjk/raw/main/Sans/SubsetOTF/JP/NotoSansJP-$w.otf"
+  curl -sfL -o "fonts/NotoSerifJP-$w.otf" \
+    "https://github.com/notofonts/noto-cjk/raw/main/Serif/SubsetOTF/JP/NotoSerifJP-$w.otf"
+  curl -sfL -o "fonts/MPLUSRounded1c-$w.ttf" \
+    "https://github.com/google/fonts/raw/main/ofl/mplusrounded1c/MPLUSRounded1c-$w.ttf"
 done
 ```
 
@@ -216,7 +229,8 @@ npx lolipop deploy
   入れてバンドルさせない。プラットフォーム別のバイナリ（`@napi-rs/canvas-linux-x64-gnu`）は
   サーバ側の `npm install` で入る
 - **`fonts/` と `public/` は `outputFileTracingIncludes` に書いておく。** `fs` で読むファイルは
-  コード解析で追跡されないため、書き忘れると standalone 出力に入らず `/api/og` が 500 になる
+  コード解析で追跡されないため、書き忘れると standalone 出力に入らず `/api/og` が 500 になる。
+  フォントを追加したら拡張子（`.otf` / `.ttf`）も含まれているか確認する
 - サブドメインに `pepabo` を含む名前は予約済みで弾かれる。そのためプロジェクト名
   (`pepabo-tech-blog-og-gen`) とサブドメイン (`tech-blog-og-gen`) を `--domain` で分けている
 - 新規作成からやり直す場合:
@@ -224,11 +238,15 @@ npx lolipop deploy
 
 ## 実装メモ
 
-- **フォント**: Noto Sans JP を Google Fonts から `<link>` で読み込む。**`next/font` は使わない。**
-  `next/font` はファミリ名を `__Noto_Sans_JP_xxxx` のようなハッシュ名にリネームするが、canvas 側は
+- **フォント**: `font` パラメータで選べる3書体（Noto Sans JP / Noto Serif JP / M PLUS Rounded 1c）を
+  Google Fonts から `<link>` で読み込む。**`next/font` は使わない。** `next/font` はファミリ名を
+  `__Noto_Sans_JP_xxxx` のようなハッシュ名にリネームするが、canvas 側は
   `ctx.font = '700 48px "Noto Sans JP"'` / `document.fonts.load('700 48px "Noto Sans JP"', 文字列)` と
-  リテラルのファミリ名で指定しているため、リネームされると指定が効かず端末のゴシック体で焼き付く
-  （見た目は動いているように見えるので気づきにくい）
+  `FONT_FAMILIES`（`app/scene.ts`）のリテラルなファミリ名で指定しているため、リネームされると
+  指定が効かず端末のゴシック体で焼き付く（見た目は動いているように見えるので気づきにくい）。
+  新しい書体を足すときは `FONT_FAMILIES` / `FONT_SOURCES` / `FONT_LABELS`（`app/scene.ts`）、
+  `FONT_FILE_SETS`（`app/api/og/route.ts`）、Google Fonts の `<link>`（`app/layout.tsx`）の
+  4箇所を揃える
 - **サブセット**: 日本語はサブセット配信されるため `document.fonts.load(spec, 実際に使う文字列)` に
   本文を渡してから描画する。これを怠ると canvas がフォールバックフォントで焼き付いてしまう。
   オフライン時は端末のゴシック体になる

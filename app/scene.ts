@@ -3,7 +3,6 @@
 // 型は DOM のものを使い、サーバー側（@napi-rs/canvas）は互換 API をキャストして渡す。
 
 export const W = 1200, H = 630;
-export const FONT = '"Noto Sans JP", -apple-system, "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif';
 
 export const LOGO_DEFAULT = '/logo-default.png';
 
@@ -13,12 +12,33 @@ export const BG_SOURCES: Record<string, string> = {
   p3: '/bg/p3.png',
 };
 
+// キーはブラウザ（Google Fonts の <link>・document.fonts.load）とサーバー（GlobalFonts.register）で共通。
+// FONT_FAMILIES がフォント登録に使う正式なファミリ名、FONT_SOURCES が canvas に渡すフォールバック込みの指定
+export const FONT_FAMILIES: Record<string, string> = {
+  notosans: 'Noto Sans JP',
+  notoserif: 'Noto Serif JP',
+  mplus: 'M PLUS Rounded 1c',
+};
+
+export const FONT_SOURCES: Record<string, string> = {
+  notosans: '"Noto Sans JP", -apple-system, "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif',
+  notoserif: '"Noto Serif JP", "Hiragino Mincho ProN", "Yu Mincho", serif',
+  mplus: '"M PLUS Rounded 1c", "Noto Sans JP", -apple-system, "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif',
+};
+
+export const FONT_LABELS: Record<string, string> = {
+  notosans: 'ゴシック',
+  notoserif: '明朝',
+  mplus: '丸ゴシック',
+};
+
 export type State = {
   title: string;
   author: string;
   role: string;
   email: string;
   bg: string;
+  font: string;
   showLogo: boolean;
   autoSize: boolean;
   titleSize: number;
@@ -31,6 +51,7 @@ export const INITIAL_STATE: State = {
   role: '',
   email: '',
   bg: 'p1',
+  font: 'notosans',
   showLogo: true,
   autoSize: true,
   titleSize: 46,
@@ -166,8 +187,8 @@ function measureContain(img: HTMLImageElement, maxW: number, maxH: number) {
   return { w: iw * s, h: ih * s };
 }
 
-function drawTitle(c: CanvasRenderingContext2D, x: number, top: number, title: TitleLayout) {
-  c.font = `700 ${title.size}px ${FONT}`;
+function drawTitle(c: CanvasRenderingContext2D, x: number, top: number, title: TitleLayout, font: string) {
+  c.font = `700 ${title.size}px ${font}`;
   c.fillStyle = INK.title;
   c.textAlign = 'left';
   c.textBaseline = 'alphabetic';
@@ -191,6 +212,7 @@ function drawPanel(c: CanvasRenderingContext2D, x: number, y: number, w: number,
 // 持っていたものを、React の外に切り出したもの。
 export function createScene(state: State, images: Images, createCanvas: CanvasFactory) {
   const { bgImages, avatarImg, logoImg } = images;
+  const font = FONT_SOURCES[state.font] || FONT_SOURCES[INITIAL_STATE.font];
 
   function hasAuthorRow() {
     return Boolean(state.author.trim() || state.role.trim() || avatarImg);
@@ -199,7 +221,7 @@ export function createScene(state: State, images: Images, createCanvas: CanvasFa
   function layoutTitle(c: CanvasRenderingContext2D, text: string, maxW: number, maxLines: number) {
     const paragraphs = text.split('\n').filter((p, i, a) => p.trim() !== '' || a.length === 1);
     const build = (size: number) => {
-      c.font = `700 ${size}px ${FONT}`;
+      c.font = `700 ${size}px ${font}`;
       return paragraphs.flatMap((p) => wrapLine(c, p, maxW));
     };
     if (!state.autoSize) {
@@ -253,14 +275,14 @@ export function createScene(state: State, images: Images, createCanvas: CanvasFa
     const role = state.role.trim();
 
     if (name && role) {
-      c.font = `500 24px ${FONT}`;
+      c.font = `500 24px ${font}`;
       c.fillStyle = INK.name;
       c.fillText(name, textX, top + 27);
-      c.font = `400 16px ${FONT}`;
+      c.font = `400 16px ${font}`;
       c.fillStyle = INK.role;
       c.fillText(role, textX, top + 55);
     } else if (name || role) {
-      c.font = `500 24px ${FONT}`;
+      c.font = `500 24px ${font}`;
       c.fillStyle = name ? INK.name : INK.role;
       c.fillText(name || role, textX, top + AVATAR_D / 2 + 9);
     }
@@ -297,7 +319,7 @@ export function createScene(state: State, images: Images, createCanvas: CanvasFa
     const areaBottom = logo ? logoTop - 28 : cardBottom - CARD_PAD;
     const blockTop = Math.max(areaTop, areaTop + (areaBottom - areaTop - blockH) / 2);
 
-    drawTitle(c, PAD_X, blockTop, title);
+    drawTitle(c, PAD_X, blockTop, title, font);
     if (hasAuthorRow()) drawAuthorRow(c, PAD_X, blockTop + title.height + AUTHOR_GAP);
 
     return { overflow: title.overflow };

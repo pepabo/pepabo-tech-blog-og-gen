@@ -2,7 +2,7 @@
 // 同じ定義を使う。State はすべてクエリで表現できるので、フォームの内容と URL の生成結果は
 // 一致する（例外はメールアドレスを消したあとに取得済みのアバターが残っているときだけ）。
 
-import { BG_SOURCES, INITIAL_STATE, type State } from './scene';
+import { BG_SOURCES, FONT_FAMILIES, INITIAL_STATE, type State } from './scene';
 
 const MAX_TITLE = 300;
 const MAX_FIELD = 120;
@@ -18,6 +18,7 @@ export function stateToQuery(state: State) {
   if (state.role.trim()) sp.set('role', state.role);
   if (state.email.trim()) sp.set('email', state.email);
   if (state.bg !== INITIAL_STATE.bg) sp.set('bg', state.bg);
+  if (state.font !== INITIAL_STATE.font) sp.set('font', state.font);
   if (!state.showLogo) sp.set('logo', '0');
   // size を渡すこと自体が「自動調整しない」の意味になる
   if (!state.autoSize) sp.set('size', String(state.titleSize));
@@ -28,6 +29,7 @@ export function stateToQuery(state: State) {
 export function queryToState(sp: URLSearchParams): State {
   const text = (key: string, max: number) => (sp.get(key) || '').replace(/\r\n?/g, '\n').slice(0, max);
   const bg = sp.get('bg') || '';
+  const font = sp.get('font') || '';
   const size = Number(sp.get('size'));
   const hasSize = sp.has('size') && Number.isFinite(size) && size > 0;
   return {
@@ -37,6 +39,7 @@ export function queryToState(sp: URLSearchParams): State {
     role: text('role', MAX_FIELD),
     email: text('email', MAX_FIELD),
     bg: Object.prototype.hasOwnProperty.call(BG_SOURCES, bg) ? bg : INITIAL_STATE.bg,
+    font: Object.prototype.hasOwnProperty.call(FONT_FAMILIES, font) ? font : INITIAL_STATE.font,
     showLogo: sp.get('logo') !== '0',
     autoSize: !hasSize,
     titleSize: hasSize ? clamp(Math.round(size), 24, 60) : INITIAL_STATE.titleSize,
