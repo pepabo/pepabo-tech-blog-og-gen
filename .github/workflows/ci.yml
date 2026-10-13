@@ -22,7 +22,7 @@ jobs:
           cache: npm
 
       - name: Setup Takumi Guard
-        uses: flatt-security/setup-takumi-guard-npm@6d4182745c1e474c35a023573c2612c085be45a4
+        uses: flatt-security/setup-takumi-guard-npm@14f07d0cbc739b42a1b7c70a04c2b84cd1318ddd
 
       - run: npm ci
 
