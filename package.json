@@ -9,7 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@napi-rs/canvas": "^1.0.9",
+    "@napi-rs/canvas": "^1.0.10",
     "next": "16.3.8",
     "react": "19.3.0",
     "react-dom": "19.3.0"
